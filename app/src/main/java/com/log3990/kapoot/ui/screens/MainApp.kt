@@ -14,16 +14,16 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun MainApp() {
-    // Create repository instance and coroutine scope
+    // Create repository instance and coroutine scope.
     val userRepository = remember { UserRepository(RetrofitInstance.userApi) }
     val scope = rememberCoroutineScope()
 
-    // UI states
+    // UI states.
     var loading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var currentUser by remember { mutableStateOf<User?>(null) }
 
-    // Toggle for whether we're on the SignUp screen or SignIn screen
+    // Toggle for whether we're on the SignUp screen or SignIn screen.
     var isOnSignUpScreen by remember { mutableStateOf(false) }
 
     when {
@@ -31,32 +31,29 @@ fun MainApp() {
             CircularProgressIndicator()
         }
         errorMessage != null -> {
-            ErrorScreen(
-                message = errorMessage!!
-            ) {
+            ErrorScreen(message = errorMessage!!) {
                 errorMessage = null
             }
         }
-        // If we have a currentUser, show HomeScreen
+        // When the user is logged in, show the ChatScreen.
         currentUser != null -> {
-            HomeScreen(
+            ChatScreen(
                 username = currentUser!!.name,
                 onLogout = {
                     scope.launch {
                         try {
                             userRepository.logout(currentUser!!.name)
                         } catch (e: Exception) {
-                            // Even if server call fails, we can still clear the user
+                            // Even if the server call fails, we can still clear the local session.
                         }
                         currentUser = null
                     }
                 }
             )
         }
-        // If no currentUser, choose between SignIn or SignUp
+        // If no user is logged in, show Sign In / Sign Up screens.
         else -> {
             if (isOnSignUpScreen) {
-                // Show Sign Up Screen
                 SignUpScreen(
                     onSignUpConfirmed = { username, password ->
                         loading = true
@@ -64,15 +61,14 @@ fun MainApp() {
                             try {
                                 val response = userRepository.signUp(username, password)
                                 if (response.isSuccessful && response.body()?.user != null) {
-                                    // Optionally sign in after successful sign up
+                                    // Optionally sign in after successful sign up.
                                     val signInSuccess = userRepository.signIn(username, password)
                                     if (signInSuccess) {
-                                        // fetch the user object so we can show it
+                                        // Fetch the user object to show in the app.
                                         val getResp = userRepository.userApi.getUserByUsername(username)
                                         if (getResp.isSuccessful) {
-                                            val messageResponse: MessageResponse? = getResp.body()
+                                            val messageResponse = getResp.body()
                                             if (messageResponse != null) {
-                                                // Parse the JSON string in the body into a User object
                                                 currentUser = Gson().fromJson(messageResponse.body, User::class.java)
                                             } else {
                                                 errorMessage = "Failed to parse user after sign up."
@@ -92,12 +88,9 @@ fun MainApp() {
                             loading = false
                         }
                     },
-                    onBackToSignIn = {
-                        isOnSignUpScreen = false
-                    }
+                    onBackToSignIn = { isOnSignUpScreen = false }
                 )
             } else {
-                // Show Sign In Screen
                 SignInScreen(
                     onSignInClicked = { username, password ->
                         loading = true
@@ -105,10 +98,10 @@ fun MainApp() {
                             try {
                                 val signInSuccess = userRepository.signIn(username, password)
                                 if (signInSuccess) {
-                                    // If sign in is successful, fetch user from server
+                                    // If sign in is successful, fetch the user from the server.
                                     val resp = userRepository.userApi.getUserByUsername(username)
                                     if (resp.isSuccessful) {
-                                        val messageResponse: MessageResponse? = resp.body()
+                                        val messageResponse = resp.body()
                                         if (messageResponse != null) {
                                             currentUser = Gson().fromJson(messageResponse.body, User::class.java)
                                         } else {
@@ -126,9 +119,7 @@ fun MainApp() {
                             loading = false
                         }
                     },
-                    onSignUpNavigate = {
-                        isOnSignUpScreen = true
-                    }
+                    onSignUpNavigate = { isOnSignUpScreen = true }
                 )
             }
         }
