@@ -1,6 +1,5 @@
 package com.log3990.kapoot.ui.screens
 
-import android.text.Layout
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -24,7 +23,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-
 @Composable
 fun ChatScreen(
     username: String,
@@ -35,24 +33,34 @@ fun ChatScreen(
     val scope = rememberCoroutineScope()
     val listState: LazyListState = rememberLazyListState()
 
-    // Helper function to add a message to the logs
-    fun addMessageToLogs(time: String, chatMsg: String) {
+    /**
+     * Adds a message to the logs in a standardized format.
+     *
+     * - For system messages (sender == null): "[HH:mm] message"
+     * - For user messages: "[HH:mm] user: message"
+     */
+    fun addMessageToLogs(time: String, message: String, sender: String? = null) {
+        val formattedMessage = if (sender != null) {
+            "[$time] $sender: $message"
+        } else {
+            "[$time] $message"
+        }
         scope.launch(Dispatchers.Main) {
-            Log.d("ChatScreen", "Adding message to logs: [$time] $chatMsg")
-            logs.add(0, "[$time] $chatMsg")
+            Log.d("ChatScreen", "Adding message to logs: $formattedMessage")
+            logs.add(0, formattedMessage)
             if (logs.size > 100) {
                 logs.removeAt(logs.lastIndex)
             }
         }
     }
 
-    // Function to get current time
+    // Returns current time formatted as HH:mm.
     fun getCurrentTime(): String {
         return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
     }
 
     LaunchedEffect(username) {
-        // Connect socket
+        // Connect to the socket.
         SocketClientService.connect(
             username,
             onConnect = {
@@ -65,32 +73,42 @@ fun ChatScreen(
             }
         )
 
-        // Listen for chat updates
+        // Listen for user chat updates.
         SocketClientService.on("updateChat") { args ->
-            Log.d("ChatScreen", "Received updateChat: ${args.joinToString()}")
-//            addMessageToLogs(getCurrentTime(), "Received updateChat")
-            val info_back = listOf(args.joinToString())
-            val (sender, message) = info_back[0].split(":", limit = 2)
-            addMessageToLogs(getCurrentTime(), message)
-            if (args.size >= 2) {
-                val time = args[0].toString()
-                val chatMsg = args[1].toString()
-                addMessageToLogs(time, chatMsg)
+            scope.launch(Dispatchers.Main) {
+                Log.d("ChatScreen", "Received updateChat: ${args.joinToString()}")
+                val (timeFromServer, payload) = args.map { it.toString() }.let { list ->
+                    when (list.size) {
+                        2 -> list[0] to list[1]
+                        1 -> getCurrentTime() to list[0]
+                        else -> getCurrentTime() to args.joinToString()
+                    }
+                }
+
+                if (":" in payload) {
+                    val (sender, messageContent) = payload.split(":", limit = 2).map { it.trim() }
+                    addMessageToLogs(timeFromServer, messageContent, sender)
+                } else {
+                    addMessageToLogs(timeFromServer, payload)
+                }
             }
         }
 
-        // Listen for system messages
+        // Listen for system messages.
         SocketClientService.on("message") { args ->
-            Log.d("ChatScreen", "Received system message: ${args.joinToString()}")
-            if (args.isNotEmpty()) {
-                addMessageToLogs(getCurrentTime(), args[0].toString())
+            scope.launch(Dispatchers.Main) {
+                Log.d("ChatScreen", "Received system message: ${args.joinToString()}")
+                if (args.isNotEmpty()) {
+                    addMessageToLogs(getCurrentTime(), args[0].toString())
+                }
             }
         }
 
-        // Add initial connection message
+        // Add an initial system message.
         addMessageToLogs(getCurrentTime(), "Connected to chat room")
     }
 
+    // Clean up socket listeners when this composable is disposed.
     DisposableEffect(Unit) {
         onDispose {
             Log.d("ChatScreen", "Cleaning up socket listeners")
@@ -100,6 +118,7 @@ fun ChatScreen(
         }
     }
 
+    // Auto-scroll to the top (index 0) when a new message is added.
     LaunchedEffect(logs.size) {
         if (logs.isNotEmpty()) {
             listState.animateScrollToItem(0)
@@ -112,7 +131,15 @@ fun ChatScreen(
             .padding(16.dp)
             .background(Color.White)
     ) {
-        // Messages list
+        // Display the connected user's name.
+        Text(
+            text = "Logged in as: $username",
+            style = TextStyle(fontSize = 18.sp),
+            color = Color.Black,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        // Messages list.
         LazyColumn(
             state = listState,
             modifier = Modifier
@@ -133,7 +160,7 @@ fun ChatScreen(
             }
         }
 
-        // Message input
+        // Message input area.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -153,16 +180,15 @@ fun ChatScreen(
                     if (message.isNotBlank()) {
                         Log.d("ChatScreen", "Sending message: $message")
                         SocketClientService.sendMessage(message)
-                        // For immediate feedback, we can also add the message locally
-                        addMessageToLogs(getCurrentTime(), "$username: $message")
                         message = ""
                     }
-                },
+                }
             ) {
                 Text("Send", color = Color.White)
             }
         }
 
+        // Logout button.
         Button(
             onClick = {
                 Log.d("ChatScreen", "Logging out")

@@ -1,90 +1,122 @@
-package com.log3990.kapoot.ui.viewmodel
+package com.log3990.kapoot.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.log3990.kapoot.data.repository.UserRepository
 import com.log3990.kapoot.utils.SessionManager
+import com.log3990.kapoot.utils.UserSession
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-sealed class AuthState {
-    object Idle : AuthState()
-    object Loading : AuthState()
-    data class Success(val username: String) : AuthState()
-    data class Error(val message: String) : AuthState()
-}
-
+/**
+ * AuthViewModel manages the authentication state including sign‑in, sign‑up, and logout.
+ *
+ * It uses [UserRepository] for network calls and [SessionManager] to persist the session.
+ */
 class AuthViewModel(
     private val userRepository: UserRepository,
     private val sessionManager: SessionManager
 ) : ViewModel() {
 
-    private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
-    val authState: StateFlow<AuthState> = _authState
+    // Expose the current user session. If the user is logged in, this holds the session data.
+    private val _userSession = MutableStateFlow<UserSession?>(null)
+    val userSession: StateFlow<UserSession?> = _userSession
+
+    // Loading state to indicate ongoing network operations.
+    private val _loading = MutableStateFlow(false)
+    val loading: StateFlow<Boolean> = _loading
+
+    // Error messages (if any) during authentication.
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage
 
     init {
-        // Check if user is already logged in from DataStore
+        // Observe session changes from the SessionManager and update the local state.
         viewModelScope.launch {
-            sessionManager.isLoggedInFlow.collect { isLoggedIn ->
-                if (isLoggedIn) {
-                    sessionManager.userNameFlow.collect { username ->
-                        if (username.isNotBlank()) {
-                            _authState.value = AuthState.Success(username)
-                        }
-                    }
+            sessionManager.sessionFlow.collect { session ->
+                if (session.loggedIn) {
+                    _userSession.value = session
+                } else {
+                    _userSession.value = null
                 }
             }
         }
     }
 
-    fun signUp(username: String, password: String) {
+    /**
+     * Sign in a user using the provided credentials.
+     *
+     * On success, the session is saved persistently.
+     */
+    fun signIn(username: String, password: String) {
+        _loading.value = true
         viewModelScope.launch {
-            _authState.value = AuthState.Loading
+            try {
+                val signInSuccess = userRepository.signIn(username, password)
+                if (signInSuccess) {
+                    // Save session persistently (you can extend this to include more details)
+                    sessionManager.saveSession(username)
+                } else {
+                    _errorMessage.value = "Sign In Failed. Check credentials."
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Unknown Error on Sign In"
+            }
+            _loading.value = false
+        }
+    }
+
+    /**
+     * Sign up a new user.
+     *
+     * If sign-up is successful, the user is automatically signed in and the session is saved.
+     */
+    fun signUp(username: String, password: String) {
+        _loading.value = true
+        viewModelScope.launch {
             try {
                 val response = userRepository.signUp(username, password)
                 if (response.isSuccessful && response.body()?.user != null) {
-                    // Optionally automatically sign in user
-                    signIn(username, password)
+                    // After a successful sign-up, sign in automatically.
+                    val signInSuccess = userRepository.signIn(username, password)
+                    if (signInSuccess) {
+                        sessionManager.saveSession(username)
+                    } else {
+                        _errorMessage.value = "Sign in failed after sign up."
+                    }
                 } else {
-                    _authState.value = AuthState.Error(response.body()?.message ?: "Sign Up Failed")
+                    _errorMessage.value = response.body()?.message ?: "Sign Up Failed"
                 }
             } catch (e: Exception) {
-                _authState.value = AuthState.Error(e.message ?: "Unknown Error")
+                _errorMessage.value = e.message ?: "Unknown Error on Sign Up"
             }
+            _loading.value = false
         }
     }
 
-    fun signIn(username: String, password: String) {
-        viewModelScope.launch {
-            _authState.value = AuthState.Loading
-            try {
-                val success = userRepository.signIn(username, password)
-                if (success) {
-                    // Save user session locally
-                    sessionManager.saveSession(username)
-                    _authState.value = AuthState.Success(username)
-                } else {
-                    _authState.value = AuthState.Error("Sign In Failed. Check credentials.")
-                }
-            } catch (e: Exception) {
-                _authState.value = AuthState.Error(e.message ?: "Unknown Error")
-            }
-        }
-    }
-
+    /**
+     * Logs out the current user.
+     *
+     * This method attempts to log out from the server, but always clears the session locally.
+     */
     fun logout() {
         viewModelScope.launch {
-            val currentState = _authState.value
-            if (currentState is AuthState.Success) {
-                try {
-                    userRepository.logout(currentState.username)
-                } catch (_: Exception) {
-                    // even if server call fails, attempt local cleanup
-                }
+            try {
+                // Optionally, notify the server about logout.
+                userRepository.logout(_userSession.value?.username ?: "")
+            } catch (e: Exception) {
+                // Even if the logout API fails, clear the session.
+            } finally {
                 sessionManager.clearSession()
-                _authState.value = AuthState.Idle
             }
         }
+    }
+
+    /**
+     * Clears any error message.
+     */
+    fun clearError() {
+        _errorMessage.value = null
     }
 }
