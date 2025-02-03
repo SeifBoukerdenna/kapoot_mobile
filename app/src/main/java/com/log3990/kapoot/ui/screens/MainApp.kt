@@ -10,7 +10,11 @@ import com.log3990.kapoot.utils.UserSession
 import kotlinx.coroutines.launch
 import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
 @Composable
 fun MainApp() {
@@ -34,8 +38,9 @@ fun MainApp() {
             CircularProgressIndicator()
         }
         errorMessage != null -> {
+            // Display the error screen when there is an error message.
             ErrorScreen(message = errorMessage!!) {
-                errorMessage = null
+                errorMessage = null // Reset the error on retry.
             }
         }
         else -> {
@@ -55,13 +60,13 @@ fun MainApp() {
                     }
                 )
             } else {
-                // Not logged in: show SignIn/SignUp screens.
                 if (isOnSignUpScreen) {
                     SignUpScreen(
                         onSignUpConfirmed = { username, password ->
                             loading = true
                             scope.launch {
                                 try {
+                                    // Call signUp. This call will throw an exception if the username exists.
                                     val response = userRepository.signUp(username, password)
                                     if (response.isSuccessful && response.body()?.user != null) {
                                         val signInSuccess = userRepository.signIn(username, password)
@@ -75,6 +80,7 @@ fun MainApp() {
                                         errorMessage = response.body()?.message ?: "Sign Up Failed"
                                     }
                                 } catch (e: Exception) {
+                                    // This will catch exceptions like "Username already in use".
                                     errorMessage = e.message ?: "Unknown Error on Sign Up"
                                 }
                                 loading = false
@@ -90,7 +96,6 @@ fun MainApp() {
                                 try {
                                     val signInSuccess = userRepository.signIn(username, password)
                                     if (signInSuccess) {
-                                        // Save session persistently.
                                         sessionManager.saveSession(username)
                                     } else {
                                         errorMessage = "Sign In Failed. Check credentials."
@@ -112,10 +117,13 @@ fun MainApp() {
 
 @Composable
 fun ErrorScreen(message: String, onRetry: () -> Unit) {
-    Column {
-        Text(text = "Error: $message")
+    Column(
+        modifier = Modifier.padding(16.dp)
+    ) {
+        Text(text = "Error: $message", color = Color.Red, modifier = Modifier.padding(bottom = 8.dp))
         Button(onClick = onRetry) {
             Text("Retry")
         }
     }
 }
+

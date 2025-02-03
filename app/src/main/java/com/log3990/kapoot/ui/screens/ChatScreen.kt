@@ -77,19 +77,31 @@ fun ChatScreen(
         SocketClientService.on("updateChat") { args ->
             scope.launch(Dispatchers.Main) {
                 Log.d("ChatScreen", "Received updateChat: ${args.joinToString()}")
-                val (timeFromServer, payload) = args.map { it.toString() }.let { list ->
-                    when (list.size) {
-                        2 -> list[0] to list[1]
-                        1 -> getCurrentTime() to list[0]
-                        else -> getCurrentTime() to args.joinToString()
-                    }
+
+                // Convert the args to a list of strings.
+                val argList = args.map { it.toString() }
+                val (rawTime, payload) = when (argList.size) {
+                    2 -> argList[0] to argList[1]
+                    1 -> getCurrentTime() to argList[0]
+                    else -> getCurrentTime() to argList.joinToString()
                 }
 
+                // Process the time value using threatTime (adjust the production flag as needed)
+                val processedTime = threatTime(rawTime, isProduction = true)
+
                 if (":" in payload) {
-                    val (sender, messageContent) = payload.split(":", limit = 2).map { it.trim() }
-                    addMessageToLogs(timeFromServer, messageContent, sender)
+                    // Split the payload at ":"; note that there might be additional colons.
+                    val parts = payload.split(":")
+                    var sender = parts.first().trim()
+                    // If the sender (case-insensitive) matches the logged-in username, change it to "Vous".
+                    if (sender.lowercase() == username.lowercase()) {
+                        sender = "Vous"
+                    }
+                    // Reconstruct the message content (all parts after the sender).
+                    val messageContent = parts.drop(1).joinToString(":").trim()
+                    addMessageToLogs(processedTime, messageContent, sender)
                 } else {
-                    addMessageToLogs(timeFromServer, payload)
+                    addMessageToLogs(processedTime, payload)
                 }
             }
         }
@@ -202,4 +214,8 @@ fun ChatScreen(
             Text("Logout", color = Color.White)
         }
     }
+}
+
+fun threatTime(rawTime: String, isProduction: Boolean): String {
+    return rawTime
 }

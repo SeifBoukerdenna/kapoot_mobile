@@ -9,17 +9,25 @@ import com.log3990.kapoot.data.api.UserResponse
 import com.log3990.kapoot.data.model.User
 import retrofit2.Response
 
-class UserRepository(val userApi: UserApi) {
+class UserRepository(private val userApi: UserApi) {
+
 
     /**
-     * Sign up user.
-     * The server expects:
-     * {
-     *   "title": "",
-     *   "body": "{\"name\":\"bob\",\"mdp\":\"1234\"}"
-     * }
+     * Signs up a new user.
+     *
+     * Before calling the sign up endpoint, we first check if the username is already in use.
+     * If the GET user by username call returns a successful response, we throw an exception with
+     * an error message indicating the username is already taken.
      */
     suspend fun signUp(name: String, password: String): Response<UserResponse> {
+        // Check if the username is already taken.
+        val checkResponse = userApi.getUserByUsername(name)
+        if (checkResponse.isSuccessful) {
+            // A successful response indicates the user exists, so we reject the sign-up.
+            throw Exception("Username already in use")
+        }
+
+        // If checkResponse was not successful (e.g., 404 Not Found), proceed with sign up.
         val userJsonString = """{"name":"$name","mdp":"$password"}"""
         val newUserRequest = NewUserRequest(
             title = "",
