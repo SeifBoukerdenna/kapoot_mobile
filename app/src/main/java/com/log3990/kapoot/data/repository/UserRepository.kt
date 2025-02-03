@@ -48,7 +48,13 @@ class UserRepository(val userApi: UserApi) {
             return false
         }
 
+        // Prevent login if the user is already connected.
+        if (user.isConnected) {
+            throw Exception("User already connected from another session.")
+        }
+
         return if (user.mdp == password) {
+            // Set isConnected to true in the remote database.
             patchUserState(username, isConnected = true)
             true
         } else {
@@ -68,9 +74,9 @@ class UserRepository(val userApi: UserApi) {
      * It sends a JSON string in the "body" field.
      */
     private suspend fun patchUserState(username: String, isConnected: Boolean) {
-        val bodyJson = """{"isConnected":$isConnected}"""
+        // Construct the JSON string exactly as the server expects.
         val updateRequest = UpdateUserRequest(
-            body = """{"body":"$bodyJson"}"""
+            body = "{\"isConnected\":$isConnected}"
         )
         userApi.patchUserState(username, updateRequest)
     }
