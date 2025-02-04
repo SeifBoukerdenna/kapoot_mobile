@@ -1,91 +1,67 @@
+// File: UserRepository.kt
 package com.log3990.kapoot.data.repository
 
 import com.google.gson.Gson
-import com.log3990.kapoot.data.api.NewUserRequest
-import com.log3990.kapoot.data.api.UpdateUserRequest
-import com.log3990.kapoot.data.api.MessageResponse
-import com.log3990.kapoot.data.api.UserApi
-import com.log3990.kapoot.data.api.UserResponse
+import com.log3990.kapoot.data.api.model.request.NewUserRequest
+import com.log3990.kapoot.data.api.model.request.UpdateUserRequest
+import com.log3990.kapoot.data.api.service.UserApiService
 import com.log3990.kapoot.data.model.User
-import retrofit2.Response
+import javax.inject.Inject
 
-class UserRepository(private val userApi: UserApi) {
-
-
-    /**
-     * Signs up a new user.
-     *
-     * Before calling the sign up endpoint, we first check if the username is already in use.
-     * If the GET user by username call returns a successful response, we throw an exception with
-     * an error message indicating the username is already taken.
-     */
-    suspend fun signUp(name: String, password: String): Response<UserResponse> {
-        // Check if the username is already taken.
-        val checkResponse = userApi.getUserByUsername(name)
-        if (checkResponse.isSuccessful) {
-            // A successful response indicates the user exists, so we reject the sign-up.
-            throw Exception("Username already in use")
-        }
-
-        // If checkResponse was not successful (e.g., 404 Not Found), proceed with sign up.
-        val userJsonString = """{"name":"$name","mdp":"$password"}"""
-        val newUserRequest = NewUserRequest(
-            title = "",
-            body = userJsonString
-        )
-        return userApi.signUp(newUserRequest)
-    }
-
-    /**
-     * "Fake" sign in logic:
-     *  1) GET /api/client/users/:username, which returns a MessageResponse.
-     *  2) Parse the 'body' field (a JSON string) into a User object.
-     *  3) Compare user.mdp with the provided password.
-     *  4) If they match, call patchUserState to set isConnected = true.
-     */
-    suspend fun signIn(username: String, password: String): Boolean {
-        val response = userApi.getUserByUsername(username)
-        if (!response.isSuccessful) return false
-
-        val messageResponse: MessageResponse = response.body() ?: return false
-
-        // Parse the "body" string to a User object using Gson.
-        val user = try {
-            Gson().fromJson(messageResponse.body, User::class.java)
+class UserRepository @Inject constructor(
+    private val userApi: UserApiService,
+    private val gson: Gson
+) {
+    suspend fun signUp(name: String, password: String): Result<User> {
+        return try {
+            val checkResponse = userApi.getUserByUsername(name)
+            if (checkResponse.isSuccessful) {
+                Result.failure(Exception("Username already in use"))
+            } else {
+                val userJsonString = """{"name":"$name","mdp":"$password"}"""
+                val response = userApi.signUp(NewUserRequest("", userJsonString))
+                if (response.isSuccessful && response.body()?.user != null) {
+                    Result.success(response.body()!!.user!!) // Force non-null since we checked it
+                } else {
+                    Result.failure(Exception(response.body()?.message ?: "Sign up failed"))
+                }
+            }
         } catch (e: Exception) {
-            return false
-        }
-
-        // Prevent login if the user is already connected.
-        if (user.isConnected) {
-            throw Exception("User already connected from another session.")
-        }
-
-        return if (user.mdp == password) {
-            // Set isConnected to true in the remote database.
-            patchUserState(username, isConnected = true)
-            true
-        } else {
-            false
+            Result.failure(e)
         }
     }
 
-    /**
-     * "Logout" logic: simply set isConnected to false.
-     */
+    suspend fun signIn(username: String, password: String): Result<Boolean> {
+        return try {
+            val response = userApi.getUserByUsername(username)
+            if (!response.isSuccessful) {
+                return Result.failure(Exception("User not found"))
+            }
+
+            val user = gson.fromJson(response.body()?.body, User::class.java)
+            if (user.isConnected) {
+                return Result.failure(Exception("User already connected from another session."))
+            }
+
+            if (user.mdp == password) {
+                patchUserState(username, true)
+                Result.success(true)
+            } else {
+                Result.success(false)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun logout(username: String) {
-        patchUserState(username, isConnected = false)
+        patchUserState(username, false)
     }
 
-    /**
-     * Helper function to call the PATCH endpoint.
-     * It sends a JSON string in the "body" field.
-     */
     private suspend fun patchUserState(username: String, isConnected: Boolean) {
-        // Construct the JSON string exactly as the server expects.
-        val updateRequest = UpdateUserRequest(
-            body = "{\"isConnected\":$isConnected}"
+        userApi.patchUserState(
+            username,
+            UpdateUserRequest(body = "{\"isConnected\":$isConnected}")
         )
-        userApi.patchUserState(username, updateRequest)
     }
 }

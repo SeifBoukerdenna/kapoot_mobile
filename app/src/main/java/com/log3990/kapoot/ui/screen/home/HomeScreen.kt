@@ -1,4 +1,4 @@
-package com.log3990.kapoot.ui.screens
+package com.log3990.kapoot.ui.screen.home
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button

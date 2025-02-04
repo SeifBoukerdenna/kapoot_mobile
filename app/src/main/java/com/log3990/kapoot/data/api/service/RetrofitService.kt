@@ -1,12 +1,13 @@
-package com.log3990.kapoot.data.api
+// File: RetrofitService.kt
+package com.log3990.kapoot.data.api.service
 
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import com.log3990.kapoot.data.api.ApiConstants
 
-object RetrofitInstance {
-
+object RetrofitService {
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
     }
@@ -15,14 +16,13 @@ object RetrofitInstance {
         .addInterceptor(loggingInterceptor)
         .build()
 
-    // Set your base URL to your remote server
     private val retrofit = Retrofit.Builder()
-        .baseUrl("http://164.90.131.87:3000/")
+        .baseUrl(ApiConstants.BASE_URL)
         .client(client)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
 
-    val userApi: UserApi by lazy {
-        retrofit.create(UserApi::class.java)
+    val userApi: UserApiService by lazy {
+        retrofit.create(UserApiService::class.java)
     }
 }

@@ -1,35 +1,21 @@
-package com.log3990.kapoot.utils
+package com.log3990.kapoot.data.local
 
 import android.content.Context
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.longPreferencesKey
-import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import com.log3990.kapoot.domain.model.UserSession
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
 
-private const val DATASTORE_NAME = "user_prefs"
-val Context.userDataStore by preferencesDataStore(DATASTORE_NAME)
+private val Context.userDataStore by preferencesDataStore("user_prefs")
 
-object SessionKeys {
-    val USERNAME = stringPreferencesKey("username")
-    val LOGGED_IN = booleanPreferencesKey("logged_in")
-    val USER_EMAIL = stringPreferencesKey("email")
-    val USER_TOKEN = stringPreferencesKey("token")
-    val LAST_LOGIN = longPreferencesKey("last_login")
-}
 
-data class UserSession(
-    val username: String,
-    val email: String,
-    val token: String,
-    val lastLogin: Long,
-    val loggedIn: Boolean
-)
-
-class SessionManager(private val context: Context) {
-
+@Singleton
+class SessionManager @Inject constructor(
+    private val context: Context
+) {
     // Flow for the complete session state.
     val sessionFlow: Flow<UserSession> = context.userDataStore.data.map { prefs ->
         UserSession(

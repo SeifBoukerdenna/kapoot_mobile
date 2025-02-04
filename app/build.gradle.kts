@@ -1,12 +1,14 @@
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.kapt")
+    id("dagger.hilt.android.plugin")
+    alias(libs.plugins.compose.compiler)
 }
 
 android {
     namespace = "com.log3990.kapoot"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.log3990.kapoot"
@@ -31,78 +33,69 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+
     }
+
     kotlinOptions {
         jvmTarget = "11"
     }
+
     buildFeatures {
         compose = true
     }
+
+
 }
 
 dependencies {
-    // ─────────────────────────────────────────────────────────────────────────────
-    //  Jetpack Compose
-    // ─────────────────────────────────────────────────────────────────────────────
-    implementation(libs.ui)
-    implementation(libs.androidx.material)
-    implementation(libs.ui.tooling.preview)
-    implementation(libs.activity.compose)
+    // Hilt
+    implementation(libs.hilt.android)
+    implementation(libs.androidx.runner)
+    implementation(libs.androidx.runner)
+    kapt(libs.hilt.android.compiler)
+    implementation(libs.androidx.hilt.navigation.compose)
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    //  Lifecycle & ViewModel
-    //   - If your version catalog has a "vlatestversion" variable, ensure it
-    //     references a real version (e.g., 2.6.1).
-    // ─────────────────────────────────────────────────────────────────────────────
-    implementation(libs.androidx.lifecycle.runtime.ktx.vlatestversion)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    // Navigation
+    implementation(libs.androidx.navigation.compose)
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    //  Retrofit & OkHttp
-    //   Choose *one* set of versions. If your libs.versions.toml references both
-    //   "libs.retrofit" and "libs.retrofit.v290" with duplicates, unify them.
-    // ─────────────────────────────────────────────────────────────────────────────
+    // Testing for Hilt
+    testImplementation(libs.hilt.android.testing)
+    kaptTest(libs.hilt.android.compiler)
+    androidTestImplementation(libs.hilt.android.testing)
+    kaptAndroidTest(libs.hilt.android.compiler)
+
+    // Compose
+    implementation(libs.androidx.ui.v154)
+    implementation(libs.androidx.material.v154)
+    implementation(libs.androidx.compose.ui.ui.tooling.preview)
+    implementation(libs.androidx.activity.compose.v182)
+
+    // Lifecycle
+    implementation(libs.androidx.lifecycle.runtime.ktx.v270)
+    implementation(libs.androidx.lifecycle.viewmodel.compose.v270)
+
+    // Retrofit & OkHttp
     implementation(libs.retrofit.v290)
     implementation(libs.converter.gson.v290)
-    implementation(libs.logging.interceptor.v493)
+    implementation(libs.logging.interceptor.v4120)
 
+    // Socket.IO
+    implementation(libs.socket.io.client.v210)
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // Websockets
-    implementation(libs.socket.io.client)
-    // ─────────────────────────────────────────────────────────────────────────────
+    // Coroutines
+    implementation(libs.kotlinx.coroutines.android.v173)
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    //  Coroutines
-    // ─────────────────────────────────────────────────────────────────────────────
-    implementation(libs.kotlinx.coroutines.android)
+    // DataStore
+    implementation(libs.androidx.datastore.preferences.v112)
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    //  DataStore (for session storage)
-    // ─────────────────────────────────────────────────────────────────────────────
-    implementation(libs.androidx.datastore.preferences.v100)
+    // Core
+    implementation(libs.androidx.core.ktx.v1120)
+    implementation(libs.material3)
 
-
-    // ─────────────────────────────────────────────────────────────────────────────
-    //  Other AndroidX Libraries
-    // ─────────────────────────────────────────────────────────────────────────────
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
-
-    // ─────────────────────────────────────────────────────────────────────────────
-    //  Testing
-    // ─────────────────────────────────────────────────────────────────────────────
+    // Testing
     testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
+    androidTestImplementation(libs.androidx.junit.v115)
+    androidTestImplementation(libs.androidx.espresso.core.v351)
+    androidTestImplementation(libs.ui.test.junit4)
+    debugImplementation(libs.ui.test.manifest)
 }
