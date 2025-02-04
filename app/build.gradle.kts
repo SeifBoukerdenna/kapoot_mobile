@@ -52,6 +52,8 @@ dependencies {
     implementation(libs.hilt.android)
     implementation(libs.androidx.runner)
     implementation(libs.androidx.runner)
+    implementation(libs.generativeai)
+    implementation(libs.androidx.espresso.core.v351)
     kapt(libs.hilt.android.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
