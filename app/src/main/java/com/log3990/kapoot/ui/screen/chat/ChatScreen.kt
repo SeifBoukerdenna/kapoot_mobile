@@ -10,10 +10,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -21,8 +31,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.log3990.kapoot.data.model.ChatMessage
+import com.log3990.kapoot.ui.component.MessageInputBar
 import com.log3990.kapoot.ui.viewmodel.ChatViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     username: String,
@@ -42,46 +54,46 @@ fun ChatScreen(
         }
     }
 
-    ChatScreenContent(
-        username = username,
-        message = message,
-        messages = messages,
-        onMessageChange = { message = it },
-        onSendMessage = {
-            if (message.isNotBlank()) {
-                viewModel.sendMessage(message)
-                message = ""
-            }
-        },
-        onLogout = {
-            viewModel.disconnect()
-            onLogout()
-        }
-    )
-}
-
-@Composable
-private fun ChatScreenContent(
-    username: String,
-    message: String,
-    messages: List<ChatMessage>,
-    onMessageChange: (String) -> Unit,
-    onSendMessage: () -> Unit,
-    onLogout: () -> Unit
-) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        Text(
-            text = "Logged in as: $username",
-            style = TextStyle(fontSize = 18.sp),
-            color = Color.Black,
-            modifier = Modifier.padding(bottom = 8.dp)
+        // Top Bar
+        TopAppBar(
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            ),
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = null
+                    )
+                    Text(
+                        text = "Logged in as: $username",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            },
+            actions = {
+                IconButton(onClick = {
+                    viewModel.disconnect()
+                    onLogout()
+                }) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Logout"
+                    )
+                }
+            }
         )
 
+        // Messages List
         MessageList(
             messages = messages,
             modifier = Modifier
@@ -89,15 +101,21 @@ private fun ChatScreenContent(
                 .fillMaxWidth()
         )
 
-        MessageInput(
+        // Input Area
+        MessageInputBar(
             message = message,
-            onMessageChange = onMessageChange,
-            onSendMessage = onSendMessage
+            onMessageChange = { message = it },
+            onSendMessage = {
+                if (message.isNotBlank()) {
+                    viewModel.sendMessage(message)
+                    message = ""
+                }
+            }
         )
-
-        LogoutButton(onLogout = onLogout)
     }
 }
+
+
 
 @Composable
 private fun MessageList(
@@ -117,38 +135,6 @@ private fun MessageList(
     }
 }
 
-@Composable
-private fun MessageItem(
-    message: ChatMessage,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-    ) {
-        Text(
-            text = buildString {
-                append("[${message.time}] ")
-                if (message.sender != null) {
-                    append("${message.sender}: ")
-                }
-            },
-            style = TextStyle(
-                fontSize = 12.sp,
-                color = Color.Gray
-            )
-        )
-        Text(
-            text = message.content,
-            style = TextStyle(
-                fontSize = 14.sp,
-                color = Color.Black
-            ),
-            modifier = Modifier.padding(start = 8.dp)
-        )
-    }
-}
 
 @Composable
 private fun MessageItem(message: ChatMessage) {
@@ -168,37 +154,3 @@ private fun MessageItem(message: ChatMessage) {
     }
 }
 
-
-@Composable
-private fun MessageInput(
-    message: String,
-    onMessageChange: (String) -> Unit,
-    onSendMessage: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        OutlinedTextField(
-            value = message,
-            onValueChange = onMessageChange,
-            modifier = Modifier.weight(1f),
-            placeholder = { Text("Type a message") }
-        )
-        Button(onClick = onSendMessage) {
-            Text("Send")
-        }
-    }
-}
-
-@Composable
-private fun LogoutButton(onLogout: () -> Unit) {
-    Button(
-        onClick = onLogout,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text("Logout")
-    }
-}
