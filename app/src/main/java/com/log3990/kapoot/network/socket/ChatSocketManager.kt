@@ -9,8 +9,6 @@ import java.net.URISyntaxException
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val TAG = "ChatSocketManager"
-
 @Singleton
 class ChatSocketManager @Inject constructor() {
     private var socket: Socket? = null
@@ -36,20 +34,23 @@ class ChatSocketManager @Inject constructor() {
                 onConnect?.invoke()
             }
 
+            socket?.on(Socket.EVENT_DISCONNECT) { args ->
+                Log.d(TAG, "Socket disconnected. Args: ${args.contentToString()}")
+            }
+
+            // Register listener for other users' disconnections
+            socket?.on("userDisconnected") { args ->
+                if (args.isNotEmpty()) {
+                    Log.d(TAG, "User disconnected: ${args[0]}")
+                }
+            }
+
             socket?.on(Socket.EVENT_CONNECT_ERROR) { args ->
                 val errorMsg = args.joinToString()
                 Log.e(TAG, "Socket connection error: $errorMsg")
                 if (args.isNotEmpty() && args[0] is Exception) {
                     onError?.invoke(args[0] as Exception)
                 }
-            }
-
-            socket?.on("updateChat") { args ->
-                Log.d(TAG, "Received updateChat event: ${args.contentToString()}")
-            }
-
-            socket?.on("message") { args ->
-                Log.d(TAG, "Received message event: ${args.contentToString()}")
             }
 
             Log.d(TAG, "Initiating socket connection...")
@@ -80,7 +81,14 @@ class ChatSocketManager @Inject constructor() {
 
     fun disconnect() {
         Log.d(TAG, "Disconnecting socket")
+        // Send a message before disconnecting
+        val lastMessage = "has left the chat"
+        socket?.emit("sendDisconnectMessage", lastMessage)
         socket?.disconnect()
         socket = null
+    }
+
+    companion object {
+        private const val TAG = "ChatSocketManager"
     }
 }

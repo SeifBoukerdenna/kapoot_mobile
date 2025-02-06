@@ -14,8 +14,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-private const val TAG = "ChatViewModel"
-
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val chatMessageUseCase: ChatMessageUseCase,
@@ -38,6 +36,7 @@ class ChatViewModel @Inject constructor(
     }
 
     private fun setupMessageListeners() {
+        // Listen for chat updates
         chatSocketManager.on("updateChat") { args ->
             viewModelScope.launch {
                 if (args.isNotEmpty()) {
@@ -51,6 +50,7 @@ class ChatViewModel @Inject constructor(
             }
         }
 
+        // Listen for system messages
         chatSocketManager.on("message") { args ->
             viewModelScope.launch {
                 if (args.isNotEmpty()) {
@@ -60,6 +60,21 @@ class ChatViewModel @Inject constructor(
                         currentUsername = currentUsername
                     )
                     _messages.value = listOf(systemMessage) + _messages.value
+                }
+            }
+        }
+
+        // Listen for user disconnections
+        chatSocketManager.on("userDisconnected") { args ->
+            viewModelScope.launch {
+                if (args.isNotEmpty()) {
+                    val username = args[0].toString()
+                    val disconnectMessage = ChatMessage.SystemEvent(
+                        time = TimeUtils.getCurrentTime(),
+                        username = username,
+                        event = " has left the chat"
+                    )
+                    _messages.value = listOf(disconnectMessage) + _messages.value
                 }
             }
         }
@@ -75,6 +90,6 @@ class ChatViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        chatSocketManager.disconnect()
+        disconnect()
     }
 }

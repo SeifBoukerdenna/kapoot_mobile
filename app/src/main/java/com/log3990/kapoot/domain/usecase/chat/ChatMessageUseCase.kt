@@ -13,6 +13,13 @@ import org.json.JSONArray
 class ChatMessageUseCase @Inject constructor(
     private val chatSocketManager: ChatSocketManager
 ) {
+    private fun isSystemEvent(content: String): Boolean {
+        return content.contains("has joined") ||
+                content.contains("has left") ||
+                content.contains("has disconnected") ||
+                content.contains("has been disconnected")
+    }
+
     fun processIncomingMessage(rawTime: String, payload: String, currentUsername: String): ChatMessage {
         val time = TimeUtils.getCurrentTime()
 
@@ -21,7 +28,6 @@ class ChatMessageUseCase @Inject constructor(
             try {
                 val jsonArray = JSONArray(payload)
                 if (jsonArray.length() >= 2) {
-                    // Extract just the message part (second element)
                     val actualMessage = jsonArray.getString(1)
                     return processMessageContent(time, actualMessage, currentUsername)
                 }
@@ -36,8 +42,16 @@ class ChatMessageUseCase @Inject constructor(
     private fun processMessageContent(time: String, content: String, currentUsername: String): ChatMessage {
         return when {
             isSystemEvent(content) -> {
-                val username = content.substringBefore(" has")
-                val event = content.substringAfter(username)
+                // Extract username and event from system message
+                val username = when {
+                    content.contains(" has ") -> content.substringBefore(" has ")
+                    else -> "System"
+                }
+                val event = when {
+                    content.contains(" has ") -> " has ${content.substringAfter(" has ")}"
+                    else -> content
+                }
+
                 ChatMessage.SystemEvent(
                     time = time,
                     username = username,
@@ -63,12 +77,6 @@ class ChatMessageUseCase @Inject constructor(
                 isSelf = false
             )
         }
-    }
-
-    private fun isSystemEvent(content: String): Boolean {
-        return content.contains("has joined") ||
-                content.contains("has left") ||
-                content.contains("has disconnected")
     }
 
     fun sendMessage(message: String) {
