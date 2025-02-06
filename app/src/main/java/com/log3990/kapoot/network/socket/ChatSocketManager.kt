@@ -1,3 +1,4 @@
+// ChatSocketManager.kt
 package com.log3990.kapoot.network.socket
 
 import android.util.Log
@@ -7,6 +8,8 @@ import io.socket.engineio.client.transports.WebSocket
 import java.net.URISyntaxException
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private const val TAG = "ChatSocketManager"
 
 @Singleton
 class ChatSocketManager @Inject constructor() {
@@ -19,7 +22,8 @@ class ChatSocketManager @Inject constructor() {
         onError: ((Exception) -> Unit)? = null
     ) {
         try {
-            socket?.disconnect()  // Disconnect any existing connection
+            Log.d(TAG, "Attempting to connect with username: $username")
+            socket?.disconnect()
 
             val opts = IO.Options().apply {
                 transports = arrayOf(WebSocket.NAME)
@@ -27,17 +31,28 @@ class ChatSocketManager @Inject constructor() {
             socket = IO.socket(serverUrl, opts)
 
             socket?.on(Socket.EVENT_CONNECT) {
-                Log.d(TAG, "Socket connected")
+                Log.d(TAG, "Socket connected successfully")
+                socket?.emit("setGlobalUsername", username)
                 onConnect?.invoke()
             }
 
             socket?.on(Socket.EVENT_CONNECT_ERROR) { args ->
-                Log.e(TAG, "Socket connection error: ${args.joinToString()}")
+                val errorMsg = args.joinToString()
+                Log.e(TAG, "Socket connection error: $errorMsg")
                 if (args.isNotEmpty() && args[0] is Exception) {
                     onError?.invoke(args[0] as Exception)
                 }
             }
 
+            socket?.on("updateChat") { args ->
+                Log.d(TAG, "Received updateChat event: ${args.contentToString()}")
+            }
+
+            socket?.on("message") { args ->
+                Log.d(TAG, "Received message event: ${args.contentToString()}")
+            }
+
+            Log.d(TAG, "Initiating socket connection...")
             socket?.connect()
         } catch (e: URISyntaxException) {
             Log.e(TAG, "Socket URI error: ${e.message}")
@@ -56,19 +71,16 @@ class ChatSocketManager @Inject constructor() {
     }
 
     fun on(event: String, listener: (Array<Any>) -> Unit) {
+        Log.d(TAG, "Registering listener for event: $event")
         socket?.on(event) { args ->
-            Log.d(TAG, "Received $event event with args: ${args.joinToString()}")
+            Log.d(TAG, "Event $event received with args: ${args.contentToString()}")
             listener(args)
         }
     }
 
     fun disconnect() {
+        Log.d(TAG, "Disconnecting socket")
         socket?.disconnect()
         socket = null
-        Log.d(TAG, "Socket disconnected")
-    }
-
-    companion object {
-        private const val TAG = "ChatSocketManager"
     }
 }

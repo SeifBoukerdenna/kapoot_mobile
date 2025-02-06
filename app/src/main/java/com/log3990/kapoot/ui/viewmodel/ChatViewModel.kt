@@ -1,5 +1,7 @@
+// ChatViewModel.kt
 package com.log3990.kapoot.ui.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.log3990.kapoot.data.model.ChatMessage
@@ -12,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
+private const val TAG = "ChatViewModel"
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
@@ -37,27 +40,32 @@ class ChatViewModel @Inject constructor(
     private fun setupMessageListeners() {
         chatSocketManager.on("updateChat") { args ->
             viewModelScope.launch {
-                if (args.isEmpty()) return@launch
+                if (args.isNotEmpty()) {
+                    val newMessage = chatMessageUseCase.processIncomingMessage(
+                        rawTime = "",
+                        payload = args[0].toString(),
+                        currentUsername = currentUsername
+                    )
+                    _messages.value = listOf(newMessage) + _messages.value
+                }
+            }
+        }
 
-                val messageList = _messages.value.toMutableList()
-                val time = TimeUtils.getCurrentTime()
-                val payload = args[0].toString()
-
-                // Use the ChatMessageUseCase to process the message
-                val newMessage = chatMessageUseCase.processIncomingMessage(
-                    rawTime = time,
-                    payload = payload,
-                    currentUsername = currentUsername
-                )
-
-                messageList.add(0, newMessage)
-                _messages.value = messageList
+        chatSocketManager.on("message") { args ->
+            viewModelScope.launch {
+                if (args.isNotEmpty()) {
+                    val systemMessage = chatMessageUseCase.processIncomingMessage(
+                        rawTime = "",
+                        payload = args[0].toString(),
+                        currentUsername = currentUsername
+                    )
+                    _messages.value = listOf(systemMessage) + _messages.value
+                }
             }
         }
     }
 
     fun sendMessage(message: String) {
-        // Use the ChatMessageUseCase to send the message
         chatMessageUseCase.sendMessage(message)
     }
 

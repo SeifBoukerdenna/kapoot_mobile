@@ -22,6 +22,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 
@@ -34,35 +35,55 @@ fun MessageList(
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
-        modifier = modifier
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        reverseLayout = true
+        modifier = modifier.fillMaxSize(),
+        reverseLayout = true,
+        contentPadding = PaddingValues(vertical = 8.dp)
     ) {
         items(messages) { message ->
-            MessageBubble(message = message)
+            when (message) {
+                is ChatMessage.UserMessage -> UserMessageBubble(message = message)
+                is ChatMessage.SystemEvent -> SystemEventMessage(message = message)
+            }
             Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
 
+
 @Composable
-fun MessageBubble(
-    message: ChatMessage,
+fun SystemEventMessage(
+    message: ChatMessage.SystemEvent,
     modifier: Modifier = Modifier
 ) {
-    val isSystemMessage = message.sender == null
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "${message.time} ${message.username}${message.event}",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+    }
+}
 
+@Composable
+fun UserMessageBubble(
+    message: ChatMessage.UserMessage,
+    modifier: Modifier = Modifier
+) {
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalAlignment = if (message.isSelf) Alignment.End else Alignment.Start
     ) {
         // Time and sender
         Text(
-            text = buildString {
-                append("[${message.time}] ")
-                if (!isSystemMessage) {
-                    append(message.sender)
-                }
-            },
+            text = "${message.time} ${if (message.isSelf) "I sent:" else "${message.sender}:"}",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 4.dp)
@@ -71,27 +92,25 @@ fun MessageBubble(
         // Message content
         Surface(
             shape = RoundedCornerShape(
-                topStart = if (message.sender == "Vous") 12.dp else 4.dp,
-                topEnd = if (message.sender == "Vous") 4.dp else 12.dp,
+                topStart = if (message.isSelf) 12.dp else 4.dp,
+                topEnd = if (message.isSelf) 4.dp else 12.dp,
                 bottomStart = 12.dp,
                 bottomEnd = 12.dp
             ),
-            color = when {
-                isSystemMessage -> MaterialTheme.colorScheme.surfaceVariant
-                message.sender == "Vous" -> MaterialTheme.colorScheme.primaryContainer
-                else -> MaterialTheme.colorScheme.secondaryContainer
-            },
+            color = if (message.isSelf)
+                MaterialTheme.colorScheme.primary
+            else
+                MaterialTheme.colorScheme.secondaryContainer,
             modifier = Modifier.widthIn(max = 280.dp)
         ) {
             Text(
                 text = message.content,
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(12.dp),
-                color = if (isSystemMessage) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                }
+                color = if (message.isSelf)
+                    MaterialTheme.colorScheme.onPrimary
+                else
+                    MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.padding(12.dp)
             )
         }
     }
@@ -185,3 +204,5 @@ fun MessageInputBar(
         }
     }
 }
+
+
