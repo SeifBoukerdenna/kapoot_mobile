@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -54,7 +55,7 @@ fun SignInScreen(
         ) {
             // Logo/Title
             Icon(
-                imageVector = Icons.Filled.MailOutline,
+                imageVector = Icons.Filled.AccountBox,
                 contentDescription = null,
                 modifier = Modifier
                     .size(64.dp)

@@ -4,8 +4,10 @@ package com.log3990.kapoot.ui.screen.chat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -52,7 +54,7 @@ fun ChatScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Edit,
+                        imageVector = Icons.Filled.AccountBox,
                         contentDescription = null
                     )
                     Text(
@@ -67,7 +69,7 @@ fun ChatScreen(
                     onLogout()
                 }) {
                     Icon(
-                        imageVector = Icons.Filled.Close,
+                        imageVector = Icons.Filled.Lock,
                         contentDescription = "Logout"
                     )
                 }

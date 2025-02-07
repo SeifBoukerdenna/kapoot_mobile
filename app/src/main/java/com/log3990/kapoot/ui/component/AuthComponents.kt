@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -83,9 +85,9 @@ fun AuthTextField(
                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
                     Icon(
                         imageVector = if (passwordVisible) {
-                            Icons.Filled.Person
+                            Icons.Filled.KeyboardArrowUp
                         } else {
-                            Icons.Filled.Clear
+                            Icons.Filled.KeyboardArrowDown
                         },
                         contentDescription = if (passwordVisible) {
                             "Hide password"
