@@ -25,7 +25,10 @@ class ChatViewModel @Inject constructor(
     private var currentUsername: String = ""
 
     fun connect(username: String) {
+        // Clear previous messages when connecting
+        _messages.value = emptyList()
         currentUsername = username
+
         chatSocketManager.connect(
             username = username,
             onConnect = {
@@ -65,7 +68,7 @@ class ChatViewModel @Inject constructor(
         }
 
         // Listen for user disconnections
-        chatSocketManager.on("userDisconnected") { args ->
+        chatSocketManager.on("disconnect") { args ->
             viewModelScope.launch {
                 if (args.isNotEmpty()) {
                     val username = args[0].toString()
@@ -86,6 +89,9 @@ class ChatViewModel @Inject constructor(
 
     fun disconnect() {
         chatSocketManager.disconnect()
+        // Clear messages when disconnecting
+        _messages.value = emptyList()
+        currentUsername = ""
     }
 
     override fun onCleared() {

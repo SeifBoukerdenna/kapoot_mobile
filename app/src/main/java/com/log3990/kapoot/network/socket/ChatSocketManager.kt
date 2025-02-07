@@ -13,6 +13,7 @@ import javax.inject.Singleton
 class ChatSocketManager @Inject constructor() {
     private var socket: Socket? = null
     private val serverUrl = "http://164.90.131.87:3000"
+    private val eventListeners = mutableMapOf<String, (Array<Any>) -> Unit>()
 
     fun connect(
         username: String,
@@ -38,18 +39,19 @@ class ChatSocketManager @Inject constructor() {
                 Log.d(TAG, "Socket disconnected. Args: ${args.contentToString()}")
             }
 
-            // Register listener for other users' disconnections
-            socket?.on("userDisconnected") { args ->
-                if (args.isNotEmpty()) {
-                    Log.d(TAG, "User disconnected: ${args[0]}")
-                }
-            }
-
             socket?.on(Socket.EVENT_CONNECT_ERROR) { args ->
                 val errorMsg = args.joinToString()
                 Log.e(TAG, "Socket connection error: $errorMsg")
                 if (args.isNotEmpty() && args[0] is Exception) {
                     onError?.invoke(args[0] as Exception)
+                }
+            }
+
+            // Reattach existing event listeners
+            eventListeners.forEach { (event, listener) ->
+                socket?.on(event) { args ->
+                    Log.d(TAG, "Event $event received with args: ${args.contentToString()}")
+                    listener(args)
                 }
             }
 
@@ -73,19 +75,24 @@ class ChatSocketManager @Inject constructor() {
 
     fun on(event: String, listener: (Array<Any>) -> Unit) {
         Log.d(TAG, "Registering listener for event: $event")
+        // Store the listener
+        eventListeners[event] = listener
+        // Attach to socket if it exists
         socket?.on(event) { args ->
             Log.d(TAG, "Event $event received with args: ${args.contentToString()}")
             listener(args)
         }
     }
 
+
     fun disconnect() {
         Log.d(TAG, "Disconnecting socket")
-        // Send a message before disconnecting
         val lastMessage = "has left the chat"
         socket?.emit("sendDisconnectMessage", lastMessage)
         socket?.disconnect()
         socket = null
+        // Clear event listeners on disconnect
+        eventListeners.clear()
     }
 
     companion object {

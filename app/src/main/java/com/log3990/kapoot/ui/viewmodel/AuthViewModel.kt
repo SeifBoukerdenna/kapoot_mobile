@@ -1,5 +1,7 @@
+// File: AuthViewModel.kt
 package com.log3990.kapoot.ui.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.log3990.kapoot.data.repository.UserRepository
@@ -42,7 +44,7 @@ class AuthViewModel @Inject constructor(
     }
 
     fun clearError() {
-        _uiState.value = AuthUiState.Initial  // This will return to the sign-in screen
+        _uiState.value = AuthUiState.Initial
     }
 
     fun signIn(username: String, password: String) {
@@ -50,12 +52,21 @@ class AuthViewModel @Inject constructor(
             _uiState.value = AuthUiState.Loading
             try {
                 val result = userRepository.signIn(username, password)
-                if (result.isSuccess && result.getOrNull() == true) {
-                    sessionManager.saveSession(username)
-                } else {
-                    _uiState.value = AuthUiState.Error("Invalid credentials")
+                when {
+                    result.isSuccess && result.getOrNull() == true -> {
+                        sessionManager.saveSession(username)
+                    }
+                    result.isFailure -> {
+                        val error = result.exceptionOrNull()
+                        Log.d("AuthViewModel", "Sign in failed: ${error?.message}")
+                        _uiState.value = AuthUiState.Error(error?.message ?: "Unknown error")
+                    }
+                    else -> {
+                        _uiState.value = AuthUiState.Error("Sign in failed")
+                    }
                 }
             } catch (e: Exception) {
+                Log.e("AuthViewModel", "Sign in error: ${e.message}")
                 _uiState.value = AuthUiState.Error(e.message ?: "Unknown error")
             }
         }
@@ -69,9 +80,12 @@ class AuthViewModel @Inject constructor(
                 if (result.isSuccess) {
                     signIn(username, password)
                 } else {
-                    _uiState.value = AuthUiState.Error(result.exceptionOrNull()?.message ?: "Sign up failed")
+                    val error = result.exceptionOrNull()
+                    Log.d("AuthViewModel", "Sign up failed: ${error?.message}")
+                    _uiState.value = AuthUiState.Error(error?.message ?: "Sign up failed")
                 }
             } catch (e: Exception) {
+                Log.e("AuthViewModel", "Sign up error: ${e.message}")
                 _uiState.value = AuthUiState.Error(e.message ?: "Unknown error")
             }
         }
@@ -79,7 +93,11 @@ class AuthViewModel @Inject constructor(
 
     fun logout(username: String) {
         viewModelScope.launch {
-            logoutUseCase(username)
+            try {
+                logoutUseCase(username)
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "Logout error: ${e.message}")
+            }
         }
     }
 }

@@ -1,6 +1,7 @@
 // File: UserRepository.kt
 package com.log3990.kapoot.data.repository
 
+import android.util.Log
 import com.google.gson.Gson
 import com.log3990.kapoot.data.api.model.request.NewUserRequest
 import com.log3990.kapoot.data.api.model.request.UpdateUserRequest
@@ -21,7 +22,7 @@ class UserRepository @Inject constructor(
                 val userJsonString = """{"name":"$name","mdp":"$password"}"""
                 val response = userApi.signUp(NewUserRequest("", userJsonString))
                 if (response.isSuccessful && response.body()?.user != null) {
-                    Result.success(response.body()!!.user!!) // Force non-null since we checked it
+                    Result.success(response.body()!!.user!!)
                 } else {
                     Result.failure(Exception(response.body()?.message ?: "Sign up failed"))
                 }
@@ -38,24 +39,37 @@ class UserRepository @Inject constructor(
                 return Result.failure(Exception("User not found"))
             }
 
-            val user = gson.fromJson(response.body()?.body, User::class.java)
-            if (user.isConnected) {
-                return Result.failure(Exception("User already connected from another session."))
+            val responseBody = response.body()?.body ?: return Result.failure(Exception("Empty response"))
+            val user = gson.fromJson(responseBody, User::class.java)
+
+            Log.d("UserRepository", "Parsed user: $user")
+
+            // First verify that this is the correct user and password
+            if (user.name != username || user.mdp != password) {
+                return Result.failure(Exception("Invalid credentials"))
             }
 
-            if (user.mdp == password) {
-                patchUserState(username, true)
-                Result.success(true)
-            } else {
-                Result.success(false)
+            // Only after confirming it's the right user, check if they're already connected
+            if (user.isConnected) {
+                Log.d("UserRepository", "User is already connected")
+                return Result.failure(Exception("User is already connected from another session"))
             }
+
+            // If we get here, user exists, credentials are correct, and user isn't connected
+            patchUserState(username, true)
+            Result.success(true)
         } catch (e: Exception) {
+            Log.e("UserRepository", "Error in signIn: ${e.message}", e)
             Result.failure(e)
         }
     }
 
     suspend fun logout(username: String) {
-        patchUserState(username, false)
+        try {
+            patchUserState(username, false)
+        } catch (e: Exception) {
+            Log.e("UserRepository", "Error in logout: ${e.message}", e)
+        }
     }
 
     private suspend fun patchUserState(username: String, isConnected: Boolean) {
